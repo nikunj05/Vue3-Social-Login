@@ -3,6 +3,8 @@ let express = require('express'),
   mongoose = require('mongoose'),
   bodyParser = require('body-parser')
 
+require('dotenv').config()
+
 // Connect mongoDB
 mongoose.Promise = global.Promise
 
@@ -39,7 +41,7 @@ app.use(cors())
 app.use('/api', loginAPI)
 
 // Create port
-const port = process.env.PORT || 4000
+const port = process.env.PORT
 
 app.listen(port, () => {
   console.log(`Server started on port ${port}`)

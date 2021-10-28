@@ -1,6 +1,7 @@
 const mongoose = require('mongoose')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
+require('dotenv').config()
 
 let registerSchema = mongoose.Schema({
   name: {
@@ -14,6 +15,10 @@ let registerSchema = mongoose.Schema({
   },
   confirm_password: {
     type: String,
+  },
+  isVerified: {
+    type: Boolean,
+    default: false,
   },
   tokens: [
     {
@@ -40,7 +45,7 @@ registerSchema.pre('save', async function(next) {
 
 registerSchema.methods.generateAuthToken = async function() {
   const user = this
-  const token = jwt.sign({ _id: user._id }, 'secret')
+  const token = jwt.sign({ _id: user._id }, process.env.SECRET)
   user.tokens = user.tokens.concat({ token })
   await user.save()
   return token
@@ -53,6 +58,7 @@ registerSchema.statics.findByCredentials = async (email, password) => {
   if (!user) {
     throw new Error({ error: 'Invalid login details' })
   }
+
   const isPasswordMatch = await bcrypt.compare(password, user.password)
   if (!isPasswordMatch) {
     throw new Error({ error: 'Invalid login details' })
@@ -61,4 +67,5 @@ registerSchema.statics.findByCredentials = async (email, password) => {
 }
 
 const Register = mongoose.model('Register', registerSchema)
+
 module.exports = Register
