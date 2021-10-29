@@ -245,7 +245,7 @@ export default {
     // methods
     async function submit() {
       try {
-        let response = await axios
+        await axios
           .post('http://localhost:4000/api/login', formData)
           .then((res) => {
             if (res) {
@@ -253,22 +253,20 @@ export default {
                 type: 'success',
                 message: 'Login Successful',
               })
+              let token = res.data.token
+              localStorage.setItem('token', token)
+
+              router.push('/dashboard')
             }
           })
           .catch((err) => {
             if (err) {
               notificationStore.showNotification({
                 type: 'error',
-                message: err.response,
+                message: err.response.data.error,
               })
             }
           })
-        let token = response.data.token
-        localStorage.setItem('token', token)
-
-        if (token) {
-          router.push('/dashboard')
-        }
       } catch (err) {
         console.log(err)
       }

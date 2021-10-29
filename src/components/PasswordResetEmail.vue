@@ -48,9 +48,10 @@
 <script setup>
 import { reactive, computed } from 'vue'
 import axios from 'axios'
-import { useRouter } from 'vue-router'
+// import { useRouter } from 'vue-router'
 import { helpers, required, email } from '@vuelidate/validators'
 import { useVuelidate } from '@vuelidate/core'
+import { useNotificationStore } from '../store/notification'
 
 // local states
 const formData = reactive({
@@ -58,7 +59,7 @@ const formData = reactive({
 })
 
 // router
-const router = useRouter()
+// const router = useRouter()
 
 // validation
 const rules = computed(() => {
@@ -75,19 +76,35 @@ const v$ = useVuelidate(
   computed(() => formData)
 )
 
+// store
+const notificationStore = useNotificationStore()
+
 // methods
 async function submit() {
   v$.value.$touch()
   if (v$.value.$invalid) {
     return true
   }
-
-  const res = await axios.post(
-    'http://localhost:4000/api/password-reset',
-    formData
-  )
-  const id = res.data.user._id
-  window.localStorage.setItem('token', res.data.token)
-  router.push(`/password-reset/${id}`)
+  await axios
+    .post('http://localhost:4000/api/password-reset', formData)
+    .then((res) => {
+      if (res) {
+        notificationStore.showNotification({
+          type: 'success',
+          message: res.data.message,
+        })
+        // const id = res.data.user._id
+        // window.localStorage.setItem('token', res.data.token)
+        // router.push(`/password-reset/${id}`)
+      }
+    })
+    .catch((err) => {
+      if (err) {
+        notificationStore.showNotification({
+          type: 'error',
+          message: err.response.data.error,
+        })
+      }
+    })
 }
 </script>

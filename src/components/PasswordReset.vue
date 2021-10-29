@@ -85,13 +85,14 @@ import {
   minLength,
 } from '@vuelidate/validators'
 import { useVuelidate } from '@vuelidate/core'
+import { useNotificationStore } from '../store/notification'
 
 // local states
 const formData = reactive({
   password: '',
   confirm_password: '',
 })
-const token = window.localStorage.getItem('token')
+// const token = window.localStorage.getItem('token')
 
 // router
 const route = useRoute()
@@ -125,6 +126,9 @@ const v$ = useVuelidate(
   computed(() => formData)
 )
 
+// store
+const notificationStore = useNotificationStore()
+
 // methods
 async function submit() {
   v$.value.$touch()
@@ -132,12 +136,24 @@ async function submit() {
     return true
   }
 
-  await axios.post(
-    `http://localhost:4000/api/password-reset/${route?.params?.id}/${token}`,
-    formData
-  )
-
-  window.localStorage.removeItem('token')
-  router.push('/login')
+  await axios
+    .post(`http://localhost:4000/api/reset/${route.params.token}`, formData)
+    .then((res) => {
+      if (res) {
+        notificationStore.showNotification({
+          type: 'success',
+          message: res.data.message,
+        })
+        router.push('/login')
+      }
+    })
+    .catch((err) => {
+      if (err) {
+        notificationStore.showNotification({
+          type: 'error',
+          message: err.response.data.error,
+        })
+      }
+    })
 }
 </script>

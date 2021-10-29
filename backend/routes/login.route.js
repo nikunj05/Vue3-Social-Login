@@ -3,6 +3,7 @@ require('dotenv').config()
 let router = express.Router()
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
+const nodemailer = require('nodemailer')
 
 const sgMail = require('@sendgrid/mail')
 sgMail.setApiKey(process.env.SENDGRID_APIKEY)
@@ -18,20 +19,21 @@ router.route('/login').post(async (req, res) => {
 
     const user = await RegisterModel.findOne({ email })
     // const user = await RegisterModel.findByCredentials(email, password)
-
-    console.log('hi', user)
+    console.log(user, 'user')
     if (!user) {
       return res
         .status(401)
-        .send({ msg: 'Login failed! Check authentication credentials' })
+        .send({ error: 'Login failed! Check authentication credentials' })
     } else if (!user.isVerified) {
       return res.status(401).send({
-        msg: 'Your Email has not been verified. Please click on resend',
+        error: 'Your Email has not been verified.',
       })
     } else {
       await bcrypt.compare(password, user.password)
       const token = await user.generateAuthToken()
-      res.status(201).json({ user, token, msg: 'User successfully logged in.' })
+      res
+        .status(201)
+        .json({ user, token, message: 'User successfully logged in.' })
     }
   } catch (err) {
     res.status(400).json({ err: err })
@@ -42,15 +44,6 @@ router.route('/login').post(async (req, res) => {
 // Register route
 router.route('/register').post(async (req, res) => {
   try {
-    // const user = new RegisterModel({
-    //   name: req.body.name,
-    //   email: req.body.email,
-    //   password: req.body.password,
-    //   confirm_password: req.body.confirm_password,
-    // })
-
-    // here it is calling the method that we created in the model
-    // const token = await user.generateAuthToken()
     const { name, email, password, confirm_password } = req.body
 
     RegisterModel.findOne({ name, email, password, confirm_password }).exec(
@@ -61,48 +54,62 @@ router.route('/register').post(async (req, res) => {
             .json({ error: 'User with this email already exists.' })
         }
 
-        const token = jwt.sign({ email: user.email }, process.env.SECRET, {
+        const token = jwt.sign({ email }, process.env.SECRET, {
           expiresIn: '1hr',
+        })
+
+        let transport = nodemailer.createTransport({
+          host: 'smtp.mailtrap.io',
+          port: 2525,
+          auth: {
+            user: '766788b2d7f49e',
+            pass: 'ee68a95b3f6878',
+          },
         })
 
         const msg = {
           from: 'hasti@coderscotch.com',
-          to: user.email,
+          to: email,
           subject: 'Verify your email',
           text: `
                Hello thanks for registering our site. Please copy and paste the address  below to verify your account.
-               http://${process.env.CLIENT_URL}/verify-email?token=${token}
+               http://${process.env.CLIENT_URL}/verify-email/${token}
                `,
           html: `
                <h1> Hello </h1>
                <p>Thanks for registering on our site.</p>
                <p>Please click the link below to verify your account.</p>
                <p>Token : ${token}</p>
-               <a href="http://${process.env.CLIENT_URL}/verify-email?token=${token}">Verify your account</a>
+               <a href="http://${process.env.CLIENT_URL}/verify-email/${token}">Verify your account</a>
                `,
         }
         try {
-          await sgMail.send(msg)
+          await transport.sendMail(msg, function(err, info) {
+            if (err) {
+              console.log(err)
+            } else {
+              console.log(info)
+            }
+          })
 
-          // user.isVerified = true
-          console.log(
-            'Thanks for regestering. please check your email to verify your account.'
-          )
+          let newUser = new RegisterModel({
+            name,
+            email,
+            password,
+            confirm_password,
+          })
+
+          newUser.save()
 
           return res.json({
+            newUser,
+            token,
             message:
               'Thanks for regestering. please check your email to verify your account.',
           })
         } catch (err) {
           console.log(err, 'error')
         }
-
-        // let data = await user.save()
-        // res.status(201).json({
-        //   data,
-        //   token,
-        //   msg: 'Registred successfully.',
-        // })
       }
     )
   } catch (err) {
@@ -112,151 +119,121 @@ router.route('/register').post(async (req, res) => {
 
 router.route('/verify-email').post(async (req, res) => {
   const { token } = req.body
+
   if (token) {
-    jwt.verify(token, process.end.SECRET, function(err, decodedToken) {
+    jwt.verify(token, process.env.SECRET, function(err) {
       if (err) {
         return res.status(400).json({ error: 'Incorrect or Expired link' })
       }
-      const { name, email, password, confirm_password } = decodedToken
-      RegisterModel.findOne({ email }).exec((err, user) => {
-        if (user) {
-          return res
-            .status(400)
-            .json({ error: 'User with this email is exists.' })
+
+      let newUser = new RegisterModel({
+        isVerified: true,
+      })
+
+      console.log(newUser, 'newuser')
+
+      newUser.save((err) => {
+        console.log()
+        if (err) {
+          console.log('error in signup while account activation:', err)
+          return res.status(400).json({ error: 'Error activating account' })
         }
-        let newUser = new RegisterModel({
-          name,
-          email,
-          password,
-          confirm_password,
-        })
-        newUser.save((err, success) => {
-          if (err) {
-            console.log('error in signup while account activation:', err)
-            return res.status(400).json({ error: 'Error activating account' })
-          }
-          res.json({
-            message: 'Signup sucess!',
-          })
+        res.json({
+          message: 'Signup sucess!',
         })
       })
     })
   } else {
     return res.json({ error: 'Something went wrong!!!' })
   }
-  // try {
-  //   let user = await RegisterModel.findOne({ token: req.query.token })
-
-  //   if (!user) {
-  //     console.log('Token is invalid')
-  //     return req.redirect('/register')
-  //   }
-  //   user.isVerified = true
-  //   await user.save()
-  //   res.redirect('/login')
-  // } catch (error) {
-  //   console.log(error)
-  //   res.status(400).json({ err: error })
-  // }
-})
-
-router.route('/confirmation/:email/:token').get(async (req, res) => {
-  try {
-    RegisterModel.findOne({ token: req.params.token }, function(err, token) {
-      // token is not found into database i.e. token may have expired
-      if (!token) {
-        return res.status(400).send({
-          msg:
-            'Your verification link may have expired. Please click on resend for verify your Email.',
-        })
-      }
-
-      // if token is found then check valid user
-      else {
-        RegisterModel.findOne(
-          {
-            _id: token._userId,
-            email: req.params.email,
-          },
-          function(err, user) {
-            // not valid user
-            if (!user) {
-              return res.status(401).send({
-                msg:
-                  'We were unable to find a user for this verification. Please SignUp!',
-              })
-            }
-            // user is already verified
-            else if (user.isVerified) {
-              return res
-                .status(200)
-                .send('User has been already verified. Please Login')
-            }
-            // verify user
-            else {
-              // change isVerified to true
-              user.isVerified = true
-              user.save(function(err) {
-                // error occur
-                if (err) {
-                  return res.status(500).send({ msg: err.message })
-                }
-                // account successfully verified
-                else {
-                  return res
-                    .status(200)
-                    .send('Your account has been successfully verified')
-                }
-              })
-            }
-          }
-        )
-      }
-    })
-  } catch (err) {
-    console.log(err, 'err')
-    res.status(400).json({ err: err })
-  }
 })
 
 router.route('/password-reset').post(async (req, res) => {
   try {
     const email = req.body.email
-    const user = await RegisterModel.findOne({ email })
 
-    if (!user) {
-      return res
-        .status(401)
-        .json({ error: 'User with this email does not exist.' })
-    }
-    const token = await user.generateAuthToken()
+    await RegisterModel.findOne({ email }).exec(async function(err, user) {
+      if (!user) {
+        return res
+          .status(400)
+          .json({ error: 'No account with that email address exists.' })
+      }
+      const token = await user.generateAuthToken()
 
-    res.status(201).json({ user, token })
+      user.save(function(err) {
+        console.log(err, 'err')
+      })
+
+      let transport = nodemailer.createTransport({
+        host: 'smtp.mailtrap.io',
+        port: 2525,
+        auth: {
+          user: '766788b2d7f49e',
+          pass: 'ee68a95b3f6878',
+        },
+      })
+
+      const msg = {
+        from: 'hasti@coderscotch.com',
+        to: email,
+        subject: ' Password Reset',
+        html:
+          'You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n' +
+          'Please click on the following link, or paste this into your browser to complete the process:\n\n' +
+          'http://' +
+          req.headers.host +
+          '/reset/' +
+          token +
+          '\n\n' +
+          'If you did not request this, please ignore this email and your password will remain unchanged.\n',
+      }
+      await transport.sendMail(msg, function(err, info) {
+        if (err) {
+          console.log(err)
+        } else {
+          console.log(info)
+        }
+      })
+
+      return res.status(201).json({ message: 'Password reset email sent.' })
+    })
   } catch (err) {
     console.log(err, 'err')
     res.status(400).json({ err: err })
   }
 })
 
-router.route('/password-reset/:userId/:token').post(async (req, res) => {
-  try {
-    const user = await RegisterModel.findById(req.params.userId)
-    if (!user) return res.status(400).send('invalid link or expired')
-
-    const token = await RegisterModel.findOne({
-      userId: user._id,
-      token: req.params.token,
+router.route('/reset/:token').get(async (req, res) => {
+  const { token } = req.params.token
+  if (token) {
+    await jwt.verify(token, process.env.SECRET, function(err, user) {
+      if (err) {
+        return res
+          .status(400)
+          .json({ error: 'Password reset token is invalid or has expired.' })
+      }
+      return res.render('reset', {
+        user: user,
+      })
     })
-    if (!token) return res.status(400).send('Invalid link or expired')
+  }
+})
 
-    user.password = req.body.password
-    await user.save()
-    await token.delete()
+router.route('/reset/:token').post(async (req, res) => {
+  const token = req.params.token
 
-    res.send('password reset sucessfully.')
-  } catch (error) {
-    res.send('An error occured')
-    console.log(error)
+  if (token) {
+    await jwt.verify(token, process.env.SECRET, async function(err, user) {
+      if (err) {
+        return res
+          .status(400)
+          .json({ error: 'Password reset token is invalid or has expired.' })
+      }
+
+      user.password = req.body.password
+
+      return res.status(201).json({ message: 'Password reset successfully' })
+    })
   }
 })
 

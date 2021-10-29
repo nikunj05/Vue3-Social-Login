@@ -13,6 +13,8 @@ const PasswordResetEmail = () =>
 
 const PasswordReset = () => import('../src/components/PasswordReset.vue')
 
+const RegisterSuccess = () => import('../src/views/RegistrationSuccess.vue')
+
 const routes = [
   {
     path: '/',
@@ -33,7 +35,7 @@ const routes = [
         component: PasswordResetEmail,
       },
       {
-        path: '/password-reset/:id',
+        path: '/reset/:token',
         name: 'password-reset',
         component: PasswordReset,
       },
@@ -44,6 +46,12 @@ const routes = [
     path: '/register',
     name: 'register',
     component: Registration,
+  },
+
+  {
+    path: '/verify-email/:token',
+    name: 'verify-email',
+    component: RegisterSuccess,
   },
 
   {

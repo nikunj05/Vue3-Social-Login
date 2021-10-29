@@ -1,6 +1,6 @@
 <template>
   <div
-    class="relative flex items-center justify-center h-screen overflow-y-hidden"
+    class="relative flex items-center justify-center w-full h-screen overflow-y-hidden"
   >
     <div class="absolute inset-0">
       <img
@@ -10,9 +10,9 @@
       />
       <div class="absolute inset-0 mix-blend-multiply" />
     </div>
-    <div class="relative z-10 w-full">
+    <div class="relative z-10 flex items-center w-full">
       <div
-        class="flex flex-col justify-center w-full px-6 py-6 pt-8 md:py-12 md:pt-16 sm:px-32"
+        class="flex flex-col items-center w-full px-6 py-6 pt-8 md:py-12 md:pt-16 sm:px-32"
       >
         <div class="sm:mx-auto sm:w-full sm:max-w-md">
           <h2 class="mt-6 text-3xl font-extrabold text-center text-gray-100">
@@ -145,7 +145,6 @@
 <script setup>
 import { computed, reactive } from 'vue'
 import axios from 'axios'
-import { useRouter } from 'vue-router'
 import {
   helpers,
   required,
@@ -156,8 +155,7 @@ import {
 } from '@vuelidate/validators'
 import { useVuelidate } from '@vuelidate/core'
 import { useNotificationStore } from '../store/notification'
-// Router
-const router = useRouter()
+import { useRouter } from 'vue-router'
 
 // local states
 const formData = reactive({
@@ -166,6 +164,9 @@ const formData = reactive({
   password: '',
   confirm_password: '',
 })
+
+// router
+const router = useRouter()
 
 // validation
 const rules = computed(() => {
@@ -218,18 +219,18 @@ async function submit() {
       if (res) {
         notificationStore.showNotification({
           type: 'success',
-          message: 'Register Successfully',
+          message: res.data.message,
         })
+        router.push(`/verify-email/${res.data.token}`)
       }
     })
     .catch((err) => {
       if (err) {
         notificationStore.showNotification({
           type: 'error',
-          message: err.response,
+          message: err.response.data.error,
         })
       }
     })
-  router.push('/login')
 }
 </script>

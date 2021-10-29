@@ -104,7 +104,10 @@ export default {
 
   methods: {
     async logout() {
-      window.localStorage.removeItem('token')
+      const token = window.localStorage.getItem('token')
+      if (token) {
+        window.localStorage.removeItem('token')
+      }
 
       // facebook logout
       if (this.$refs.authRef) {
