@@ -221,7 +221,7 @@ async function submit() {
           type: 'success',
           message: res.data.message,
         })
-        router.push(`/verify-email/${res.data.token}`)
+        router.push(`/verify-email/${res.data.newUser._id}`)
       }
     })
     .catch((err) => {

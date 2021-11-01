@@ -3,32 +3,37 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 require('dotenv').config()
 
-let registerSchema = mongoose.Schema({
-  name: {
-    type: String,
-  },
-  email: {
-    type: String,
-  },
-  password: {
-    type: String,
-  },
-  confirm_password: {
-    type: String,
-  },
-  isVerified: {
-    type: Boolean,
-    default: false,
-  },
-  tokens: [
-    {
-      token: {
-        type: String,
-        required: true,
-      },
+let registerSchema = mongoose.Schema(
+  {
+    name: {
+      type: String,
     },
-  ],
-})
+    email: {
+      type: String,
+    },
+    password: {
+      type: String,
+    },
+    confirm_password: {
+      type: String,
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    tokens: [
+      {
+        token: {
+          type: String,
+          required: true,
+        },
+      },
+    ],
+  },
+  {
+    collection: 'registers',
+  }
+)
 
 // converting password into hash
 

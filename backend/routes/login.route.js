@@ -46,105 +46,71 @@ router.route('/register').post(async (req, res) => {
   try {
     const { name, email, password, confirm_password } = req.body
 
-    RegisterModel.findOne({ name, email, password, confirm_password }).exec(
-      async (err, user) => {
-        if (user) {
-          return res
-            .status(400)
-            .json({ error: 'User with this email already exists.' })
-        }
-
-        const token = jwt.sign({ email }, process.env.SECRET, {
-          expiresIn: '1hr',
-        })
-
-        let transport = nodemailer.createTransport({
-          host: 'smtp.mailtrap.io',
-          port: 2525,
-          auth: {
-            user: '766788b2d7f49e',
-            pass: 'ee68a95b3f6878',
-          },
-        })
-
-        const msg = {
-          from: 'hasti@coderscotch.com',
-          to: email,
-          subject: 'Verify your email',
-          text: `
-               Hello thanks for registering our site. Please copy and paste the address  below to verify your account.
-               http://${process.env.CLIENT_URL}/verify-email/${token}
-               `,
-          html: `
-               <h1> Hello </h1>
-               <p>Thanks for registering on our site.</p>
-               <p>Please click the link below to verify your account.</p>
-               <p>Token : ${token}</p>
-               <a href="http://${process.env.CLIENT_URL}/verify-email/${token}">Verify your account</a>
-               `,
-        }
-        try {
-          await transport.sendMail(msg, function(err, info) {
-            if (err) {
-              console.log(err)
-            } else {
-              console.log(info)
-            }
-          })
-
-          let newUser = new RegisterModel({
-            name,
-            email,
-            password,
-            confirm_password,
-          })
-
-          newUser.save()
-
-          return res.json({
-            newUser,
-            token,
-            message:
-              'Thanks for regestering. please check your email to verify your account.',
-          })
-        } catch (err) {
-          console.log(err, 'error')
-        }
+    RegisterModel.findOne({ email }).exec(async (err, user) => {
+      if (user) {
+        return res
+          .status(400)
+          .json({ error: 'User with this email already exists.' })
       }
-    )
-  } catch (err) {
-    res.status(400).json({ err: err })
-  }
-})
 
-router.route('/verify-email').post(async (req, res) => {
-  const { token } = req.body
+      const token = jwt.sign({ email }, process.env.SECRET, {
+        expiresIn: '1hr',
+      })
 
-  if (token) {
-    jwt.verify(token, process.env.SECRET, function(err) {
-      if (err) {
-        return res.status(400).json({ error: 'Incorrect or Expired link' })
-      }
+      let transport = nodemailer.createTransport({
+        host: 'smtp.mailtrap.io',
+        port: 2525,
+        auth: {
+          user: '766788b2d7f49e',
+          pass: 'ee68a95b3f6878',
+        },
+      })
 
       let newUser = new RegisterModel({
+        name,
+        email,
+        password,
+        confirm_password,
         isVerified: true,
       })
 
-      console.log(newUser, 'newuser')
-
-      newUser.save((err) => {
-        console.log()
-        if (err) {
-          console.log('error in signup while account activation:', err)
-          return res.status(400).json({ error: 'Error activating account' })
-        }
-        res.json({
-          message: 'Signup sucess!',
+      const msg = {
+        from: 'hasti@coderscotch.com',
+        to: email,
+        subject: 'Verify your email',
+        text: `
+               Hello thanks for registering our site. Please copy and paste the address  below to verify your account.
+               http://${process.env.CLIENT_URL}/verify-email
+               `,
+        html: `
+               <h1> Hello </h1>
+               <p>Thanks for registering on our site.</p>
+               <p>Please click the link below to verify your account.</p>
+               `,
+      }
+      try {
+        await transport.sendMail(msg, function(err, info) {
+          if (err) {
+            console.log(err)
+          } else {
+            console.log(info)
+          }
         })
-      })
+
+        newUser.save()
+
+        return res.json({
+          newUser,
+          token,
+          message:
+            'Thanks for regestering. please check your email to verify your account.',
+        })
+      } catch (err) {
+        console.log(err, 'error')
+      }
     })
-  } else {
-    return res.json({ error: 'Something went wrong!!!' })
+  } catch (err) {
+    res.status(400).json({ err: err })
   }
 })
 

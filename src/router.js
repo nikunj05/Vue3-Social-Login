@@ -49,7 +49,7 @@ const routes = [
   },
 
   {
-    path: '/verify-email/:token',
+    path: '/verify-email/:id',
     name: 'verify-email',
     component: RegisterSuccess,
   },
